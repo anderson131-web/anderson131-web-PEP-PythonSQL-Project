@@ -53,7 +53,7 @@ def main():
     conn.close()
 
 
-def load_and_clean_users(file_path):
+def load_and_clean_users(file_path, cursor=None, conn=None):
     """
     Load users from CSV and insert into database.
 
@@ -64,7 +64,12 @@ def load_and_clean_users(file_path):
 
     Args:
         file_path: Path to users.csv file
+        cursor: Database cursor (defaults to global cursor)
+        conn: Database connection (defaults to global conn)
     """
+    _cursor = cursor if cursor is not None else globals()['cursor']
+    _conn = conn if conn is not None else globals()['conn']
+    
     with open(file_path, 'r') as file:
         reader = csv.reader(file)
         next(reader, None)  # Skip header row
@@ -86,14 +91,14 @@ def load_and_clean_users(file_path):
             userId, firstName, lastName = row
             rows_to_insert.append((int(userId), firstName, lastName))
 
-        cursor.executemany(
+        _cursor.executemany(
             'INSERT INTO users (userId, firstName, lastName) VALUES (?, ?, ?)',
             rows_to_insert
         )
-        conn.commit()
+        _conn.commit()
 
 
-def load_and_clean_call_logs(file_path):
+def load_and_clean_call_logs(file_path, cursor=None, conn=None):
     """
     Load call logs from CSV and insert into database.
 
@@ -105,7 +110,12 @@ def load_and_clean_call_logs(file_path):
 
     Args:
         file_path: Path to callLogs.csv file
+        cursor: Database cursor (defaults to global cursor)
+        conn: Database connection (defaults to global conn)
     """
+    _cursor = cursor if cursor is not None else globals()['cursor']
+    _conn = conn if conn is not None else globals()['conn']
+    
     with open(file_path, 'r') as file:
         reader = csv.reader(file)
         next(reader, None)  # Skip header row
@@ -131,30 +141,35 @@ def load_and_clean_call_logs(file_path):
                 (phoneNumber, int(startTime), int(endTime), direction, int(userId))
             )
 
-        cursor.executemany(
+        _cursor.executemany(
             'INSERT INTO callLogs (phoneNumber, startTime, endTime, direction, userId) VALUES (?, ?, ?, ?, ?)',
             rows_to_insert
         )
-        conn.commit()
+        _conn.commit()
 
 
-def write_user_analytics(csv_file_path):
+def write_user_analytics(csv_file_path, cursor=None, conn=None):
     """
     Generate analytics report with average call duration and call count per user.
 
     Args:
         csv_file_path: Path where to write the userAnalytics.csv file
+        cursor: Database cursor (defaults to global cursor)
+        conn: Database connection (defaults to global conn)
     """
+    _cursor = cursor if cursor is not None else globals()['cursor']
+    _conn = conn if conn is not None else globals()['conn']
+    
     with open(csv_file_path, 'w', newline='') as file:
         writer = csv.writer(file)
 
-        cursor.execute('SELECT userId, endTime - startTime FROM callLogs')
+        _cursor.execute('SELECT userId, endTime - startTime FROM callLogs')
 
         durations = {}
         counts = {}
 
         # Aggregate call durations and counts by user
-        for userId, duration in cursor:
+        for userId, duration in _cursor:
             durations.setdefault(userId, []).append(duration)
             counts[userId] = counts.get(userId, 0) + 1
 
@@ -165,19 +180,24 @@ def write_user_analytics(csv_file_path):
             writer.writerow([userId, avg_duration, num_calls])
 
 
-def write_ordered_calls(csv_file_path):
+def write_ordered_calls(csv_file_path, cursor=None, conn=None):
     """
     Write all call logs to CSV ordered by userId, then start time.
 
     Args:
         csv_file_path: Path where to write the orderedCalls.csv file
+        cursor: Database cursor (defaults to global cursor)
+        conn: Database connection (defaults to global conn)
     """
+    _cursor = cursor if cursor is not None else globals()['cursor']
+    _conn = conn if conn is not None else globals()['conn']
+    
     with open(csv_file_path, 'w', newline='') as file:
         writer = csv.writer(file)
 
-        cursor.execute('SELECT * FROM callLogs ORDER BY userId, startTime')
+        _cursor.execute('SELECT * FROM callLogs ORDER BY userId, startTime')
 
-        for row in cursor:
+        for row in _cursor:
             writer.writerow(row)
 
 
