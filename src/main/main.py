@@ -162,6 +162,9 @@ def write_user_analytics(csv_file_path, cursor=None, conn=None):
     
     with open(csv_file_path, 'w', newline='') as file:
         writer = csv.writer(file)
+        
+        # Write header row
+        writer.writerow(['userId', 'avgDuration', 'numCalls'])
 
         _cursor.execute('SELECT userId, endTime - startTime FROM callLogs')
 
