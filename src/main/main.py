@@ -52,7 +52,7 @@ def main():
 
 
 # This function will load the users.csv file into the users table, discarding any records with incomplete data
-def load_and_clean_users(file_path):
+
     def load_and_clean_users(file_path):
 
     with open(file_path, 'r') as file:
