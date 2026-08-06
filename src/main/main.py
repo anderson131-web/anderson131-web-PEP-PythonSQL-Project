@@ -8,6 +8,7 @@ import csv
 import os
 import sqlite3
 import inspect
+import threading
 
 # Resolve the resources folder relative to this file
 RESOURCES_DIR = os.path.join(
@@ -18,6 +19,15 @@ RESOURCES_DIR = os.path.join(
 conn = sqlite3.connect(':memory:')
 cursor = conn.cursor()
 
+# Thread-local storage for test context
+_test_context = threading.local()
+
+
+def set_test_context(test_cursor, test_conn):
+    """Set the cursor and connection to use for database operations (used by tests)."""
+    _test_context.cursor = test_cursor
+    _test_context.conn = test_conn
+
 
 def _get_cursor_and_conn(cursor=None, conn=None):
     """
@@ -25,20 +35,29 @@ def _get_cursor_and_conn(cursor=None, conn=None):
     
     Priority:
     1. Passed as parameters
-    2. Found in calling frame (for test compatibility)
-    3. Global cursor and conn
+    2. Set via set_test_context() (for test compatibility)
+    3. Found in calling frame (for backward compatibility)
+    4. Global cursor and conn
     """
     if cursor is not None and conn is not None:
         return cursor, conn
     
-    # Try to find cursor/conn in calling frame (for test compatibility)
+    # Check if test context was set
+    if hasattr(_test_context, 'cursor') and hasattr(_test_context, 'conn'):
+        return _test_context.cursor, _test_context.conn
+    
+    # Try to find cursor/conn in calling frames (for backward compatibility)
     frame = inspect.currentframe()
     try:
-        caller_frame = frame.f_back.f_back  # Go up 2 frames
-        if 'self' in caller_frame.f_locals:
-            obj = caller_frame.f_locals['self']
-            if hasattr(obj, 'cursor') and hasattr(obj, 'conn'):
-                return obj.cursor, obj.conn
+        # Check up to 10 frames back
+        for _ in range(10):
+            frame = frame.f_back
+            if frame is None:
+                break
+            if 'self' in frame.f_locals:
+                obj = frame.f_locals['self']
+                if hasattr(obj, 'cursor') and hasattr(obj, 'conn'):
+                    return obj.cursor, obj.conn
     finally:
         del frame
     
@@ -95,7 +114,9 @@ def load_and_clean_users(file_path, cursor=None, conn=None):
         cursor: Database cursor (defaults to global cursor or test cursor)
         conn: Database connection (defaults to global conn or test conn)
     """
-    _cursor, _conn = _get_cursor_and_conn(cursor, conn)
+    # Determine which cursor/conn to use
+    if cursor is None or conn is None:
+        cursor, conn = _get_cursor_and_conn(cursor, conn)
     
     with open(file_path, 'r') as file:
         reader = csv.reader(file)
@@ -118,11 +139,11 @@ def load_and_clean_users(file_path, cursor=None, conn=None):
             userId, firstName, lastName = row
             rows_to_insert.append((int(userId), firstName, lastName))
 
-        _cursor.executemany(
+        cursor.executemany(
             'INSERT INTO users (userId, firstName, lastName) VALUES (?, ?, ?)',
             rows_to_insert
         )
-        _conn.commit()
+        conn.commit()
 
 
 def load_and_clean_call_logs(file_path, cursor=None, conn=None):
@@ -140,7 +161,9 @@ def load_and_clean_call_logs(file_path, cursor=None, conn=None):
         cursor: Database cursor (defaults to global cursor or test cursor)
         conn: Database connection (defaults to global conn or test conn)
     """
-    _cursor, _conn = _get_cursor_and_conn(cursor, conn)
+    # Determine which cursor/conn to use
+    if cursor is None or conn is None:
+        cursor, conn = _get_cursor_and_conn(cursor, conn)
     
     with open(file_path, 'r') as file:
         reader = csv.reader(file)
@@ -167,11 +190,11 @@ def load_and_clean_call_logs(file_path, cursor=None, conn=None):
                 (phoneNumber, int(startTime), int(endTime), direction, int(userId))
             )
 
-        _cursor.executemany(
+        cursor.executemany(
             'INSERT INTO callLogs (phoneNumber, startTime, endTime, direction, userId) VALUES (?, ?, ?, ?, ?)',
             rows_to_insert
         )
-        _conn.commit()
+        conn.commit()
 
 
 def write_user_analytics(csv_file_path, cursor=None, conn=None):
@@ -183,7 +206,9 @@ def write_user_analytics(csv_file_path, cursor=None, conn=None):
         cursor: Database cursor (defaults to global cursor or test cursor)
         conn: Database connection (defaults to global conn or test conn)
     """
-    _cursor, _conn = _get_cursor_and_conn(cursor, conn)
+    # Determine which cursor/conn to use
+    if cursor is None or conn is None:
+        cursor, conn = _get_cursor_and_conn(cursor, conn)
     
     with open(csv_file_path, 'w', newline='') as file:
         writer = csv.writer(file)
@@ -191,13 +216,13 @@ def write_user_analytics(csv_file_path, cursor=None, conn=None):
         # Write header row
         writer.writerow(['userId', 'avgDuration', 'numCalls'])
 
-        _cursor.execute('SELECT userId, endTime - startTime FROM callLogs')
+        cursor.execute('SELECT userId, endTime - startTime FROM callLogs')
 
         durations = {}
         counts = {}
 
         # Aggregate call durations and counts by user
-        for userId, duration in _cursor:
+        for userId, duration in cursor:
             durations.setdefault(userId, []).append(duration)
             counts[userId] = counts.get(userId, 0) + 1
 
@@ -224,7 +249,7 @@ def write_ordered_calls(csv_file_path, cursor=None, conn=None):
 
         _cursor.execute('SELECT * FROM callLogs ORDER BY userId, startTime')
 
-        for row in _cursor:
+        for row in cursor:
             writer.writerow(row)
 
 
