@@ -34,31 +34,17 @@ def main():
         FOREIGN KEY (userId) REFERENCES users(userId)
     )''')
 
-    # You will implement these methods below. They just print TO-DO messages for now.
     load_and_clean_users(os.path.join(_RESOURCES_DIR, 'users.csv'))
     load_and_clean_call_logs(os.path.join(_RESOURCES_DIR, 'callLogs.csv'))
     write_user_analytics(os.path.join(_RESOURCES_DIR, 'userAnalytics.csv'))
     write_ordered_calls(os.path.join(_RESOURCES_DIR, 'orderedCalls.csv'))
 
-    # Helper method that prints the contents of the users and callLogs tables. Uncomment to see data.
     # select_from_users_and_call_logs()
 
-    # Close the cursor and connection. main function ends here.
     cursor.close()
     conn.close()
 
 
-# TODO: Implement the following 4 functions. The functions must pass the unit tests to complete the project.
-
-
-# This function will load the users.csv file into the users table, discarding any records with incomplete data
-def load_and_clean_users(file_path):
-    
-
-    print("TODO: load_users")
-
-
-# This function will load the callLogs.csv file into the callLogs table, discarding any records with incomplete data
 # This function will load the users.csv file into the users table, discarding any records with incomplete data
 def load_and_clean_users(file_path):
 
@@ -79,45 +65,77 @@ def load_and_clean_users(file_path):
                                VALUES (?, ?, ?)''', rows_to_insert)
         conn.commit()
 
-    print("TODO: load_call_logs")
+
+# This function will load the callLogs.csv file into the callLogs table, discarding any records with incomplete data
+def load_and_clean_call_logs(file_path):
+
+    with open(file_path, 'r') as file:
+        reader = csv.reader(file)
+        rows_to_insert = []
+
+        for row in reader:
+            if len(row) != 5:
+                continue
+            if any(field.strip() == '' for field in row):
+                continue
+
+            phoneNumber, startTime, endTime, direction, userId = row
+            rows_to_insert.append((phoneNumber, int(startTime), int(endTime), direction, int(userId)))
+
+        cursor.executemany('''INSERT INTO callLogs (phoneNumber, startTime, endTime, direction, userId)
+                               VALUES (?, ?, ?, ?, ?)''', rows_to_insert)
+        conn.commit()
 
 
 # This function will write analytics data to testUserAnalytics.csv - average call time, and number of calls per user.
-# You must save records consisting of each userId, avgDuration, and numCalls
-# example: 1,105.0,4 - where 1 is the userId, 105.0 is the avgDuration, and 4 is the numCalls.
 def write_user_analytics(csv_file_path):
 
-    print("TODO: write_user_analytics")
+    with open(csv_file_path, 'w', newline='') as file:
+        writer = csv.writer(file)
+
+        cursor.execute('''SELECT userId, endTime - startTime FROM callLogs''')
+
+        durations = {}
+        counts = {}
+
+        for userId, duration in cursor:
+            durations.setdefault(userId, []).append(duration)
+            counts[userId] = counts.get(userId, 0) + 1
+
+        for userId in durations:
+            avgDuration = sum(durations[userId]) / len(durations[userId])
+            numCalls = counts[userId]
+            writer.writerow([userId, avgDuration, numCalls])
 
 
 # This function will write the callLogs ordered by userId, then start time.
-# Then, write the ordered callLogs to orderedCalls.csv
 def write_ordered_calls(csv_file_path):
 
-    print("TODO: write_ordered_calls")
+    with open(csv_file_path, 'w', newline='') as file:
+        writer = csv.writer(file)
 
+        cursor.execute('''SELECT * FROM callLogs ORDER BY userId, startTime''')
+
+        for row in cursor:
+            writer.writerow(row)
 
 
 # No need to touch the functions below!------------------------------------------
 
-# This function is for debugs/validation - uncomment the function invocation in main() to see the data in the database.
 def select_from_users_and_call_logs():
 
     print()
     print("PRINTING DATA FROM USERS")
     print("-------------------------")
 
-    # Select and print users data
     cursor.execute('''SELECT * FROM users''')
     for row in cursor:
         print(row)
 
-    # new line
     print()
     print("PRINTING DATA FROM CALLLOGS")
     print("-------------------------")
 
-    # Select and print callLogs data
     cursor.execute('''SELECT * FROM callLogs''')
     for row in cursor:
         print(row)
