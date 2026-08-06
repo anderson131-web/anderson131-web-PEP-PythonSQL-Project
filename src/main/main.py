@@ -87,10 +87,11 @@ def load_and_clean_users(file_path, cursor=None, conn=None):
     Load users from CSV and insert into database.
 
     Validates each record:
-    - Must have exactly 3 fields
+    - Must have exactly 2 fields (firstName, lastName)
     - No empty fields
-    - userId must be numeric
-    - firstName and lastName must contain only alphabetic characters
+
+    userId is auto-assigned by SQLite (INTEGER PRIMARY KEY), since
+    the source CSV does not include a userId column.
 
     Args:
         file_path: Path to users.csv file
@@ -106,35 +107,24 @@ def load_and_clean_users(file_path, cursor=None, conn=None):
 
         for row in reader:
             # Validate row has correct number of fields
-            if len(row) != 3:
+            if len(row) != 2:
                 continue
 
-            # Strip whitespace from every field up front
+            # Strip whitespace from every field
             row = [field.strip() for field in row]
 
             # Validate no empty fields
             if any(field == '' for field in row):
                 continue
 
-            userId, firstName, lastName = row
-
-            # Validate userId is numeric
-            if not userId.isdigit():
-                continue
-
-            # Validate firstName and lastName are alphabetic (letters only)
-            if not firstName.isalpha() or not lastName.isalpha():
-                continue
-
-            rows_to_insert.append((int(userId), firstName, lastName))
+            firstName, lastName = row
+            rows_to_insert.append((firstName, lastName))
 
         _cursor.executemany(
-            'INSERT INTO users (userId, firstName, lastName) VALUES (?, ?, ?)',
+            'INSERT INTO users (firstName, lastName) VALUES (?, ?)',
             rows_to_insert
         )
         _conn.commit()
-
-
 
 
 
