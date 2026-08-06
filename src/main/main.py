@@ -81,6 +81,7 @@ def main():
     conn.close()
 
 
+
 def load_and_clean_users(file_path, cursor=None, conn=None):
     """
     Load users from CSV and insert into database.
