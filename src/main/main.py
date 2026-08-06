@@ -1,46 +1,54 @@
+"""
+Call logs data processing script.
+
+Loads user and call log data from CSV files, validates/cleans the data,
+and generates analytics and ordered call reports.
+"""
 import csv
 import os
 import sqlite3
 
-# Resolve the resources folder relative to this file, so paths work
-# no matter what directory the script is run from.
-_RESOURCES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'resources')
+# Resolve the resources folder relative to this file
+RESOURCES_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), '..', '..', 'resources'
+)
 
-# Connect to the SQLite in-memory database
+# Database connection and cursor (global for use across functions)
 conn = sqlite3.connect(':memory:')
-
-# A cursor object to execute SQL commands
 cursor = conn.cursor()
 
 
 def main():
+    """Initialize database and process user and call log data."""
+    # Create users table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            userId INTEGER PRIMARY KEY,
+            firstName TEXT,
+            lastName TEXT
+        )
+    ''')
 
-    # users table
-    cursor.execute('''CREATE TABLE IF NOT EXISTS users (
-                        userId INTEGER PRIMARY KEY,
-                        firstName TEXT,
-                        lastName TEXT
-                      )'''
-                   )
+    # Create call logs table with foreign key to users
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS callLogs (
+            callId INTEGER PRIMARY KEY,
+            phoneNumber TEXT,
+            startTime INTEGER,
+            endTime INTEGER,
+            direction TEXT,
+            userId INTEGER,
+            FOREIGN KEY (userId) REFERENCES users(userId)
+        )
+    ''')
 
-    # callLogs table (with FK to users table)
-    cursor.execute('''CREATE TABLE IF NOT EXISTS callLogs (
-        callId INTEGER PRIMARY KEY,
-        phoneNumber TEXT,
-        startTime INTEGER,
-        endTime INTEGER,
-        direction TEXT,
-        userId INTEGER,
-        FOREIGN KEY (userId) REFERENCES users(userId)
-    )''')
+    # Load and process data
+    load_and_clean_users(os.path.join(RESOURCES_DIR, 'users.csv'))
+    load_and_clean_call_logs(os.path.join(RESOURCES_DIR, 'callLogs.csv'))
+    write_user_analytics(os.path.join(RESOURCES_DIR, 'userAnalytics.csv'))
+    write_ordered_calls(os.path.join(RESOURCES_DIR, 'orderedCalls.csv'))
 
-    load_and_clean_users(os.path.join(_RESOURCES_DIR, 'users.csv'))
-    load_and_clean_call_logs(os.path.join(_RESOURCES_DIR, 'callLogs.csv'))
-    write_user_analytics(os.path.join(_RESOURCES_DIR, 'userAnalytics.csv'))
-    write_ordered_calls(os.path.join(_RESOURCES_DIR, 'orderedCalls.csv'))
-
-    # select_from_users_and_call_logs()
-
+    # Cleanup
     cursor.close()
     conn.close()
 
@@ -50,6 +58,7 @@ def load_and_clean_users(file_path):
 
     with open(file_path, 'r') as file:
         reader = csv.reader(file)
+        next(reader, None)  # skip header row
         rows_to_insert = []
 
         for row in reader:
@@ -108,7 +117,8 @@ def write_user_analytics(csv_file_path):
             durations.setdefault(userId, []).append(duration)
             counts[userId] = counts.get(userId, 0) + 1
 
-        for userId in durations:
+        # Sort by userId to ensure consistent ordering
+        for userId in sorted(durations.keys()):
             avgDuration = sum(durations[userId]) / len(durations[userId])
             numCalls = counts[userId]
             writer.writerow([userId, avgDuration, numCalls])
