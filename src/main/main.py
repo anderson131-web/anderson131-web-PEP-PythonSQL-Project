@@ -90,6 +90,7 @@ def load_and_clean_users(file_path, cursor=None, conn=None):
     - Must have exactly 3 fields
     - No empty fields
     - userId must be numeric
+    - firstName and lastName must contain only alphabetic characters
 
     Args:
         file_path: Path to users.csv file
@@ -115,11 +116,16 @@ def load_and_clean_users(file_path, cursor=None, conn=None):
             if any(field == '' for field in row):
                 continue
 
+            userId, firstName, lastName = row
+
             # Validate userId is numeric
-            if not row[0].isdigit():
+            if not userId.isdigit():
                 continue
 
-            userId, firstName, lastName = row
+            # Validate firstName and lastName are alphabetic (letters only)
+            if not firstName.isalpha() or not lastName.isalpha():
+                continue
+
             rows_to_insert.append((int(userId), firstName, lastName))
 
         _cursor.executemany(
