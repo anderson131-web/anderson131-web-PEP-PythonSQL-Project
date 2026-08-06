@@ -57,6 +57,8 @@ def load_and_clean_users(file_path):
                 continue
             if any(field.strip() == '' for field in row):
                 continue
+            if not row[0].strip().isdigit():
+                continue
 
             userId, firstName, lastName = row
             rows_to_insert.append((int(userId), firstName, lastName))
@@ -71,12 +73,16 @@ def load_and_clean_call_logs(file_path):
 
     with open(file_path, 'r') as file:
         reader = csv.reader(file)
+        next(reader, None)  # skip header row
+
         rows_to_insert = []
 
         for row in reader:
             if len(row) != 5:
                 continue
             if any(field.strip() == '' for field in row):
+                continue
+            if not row[1].strip().lstrip('-').isdigit() or not row[2].strip().lstrip('-').isdigit() or not row[4].strip().isdigit():
                 continue
 
             phoneNumber, startTime, endTime, direction, userId = row
