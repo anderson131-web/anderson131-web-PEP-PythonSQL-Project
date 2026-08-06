@@ -52,6 +52,13 @@ def main():
 
 
 # This function will load the users.csv file into the users table, discarding any records with incomplete data
+def load_and_clean_users(file_path):
+    
+
+    print("TODO: load_users")
+
+
+# This function will load the callLogs.csv file into the callLogs table, discarding any records with incomplete data
 # This function will load the users.csv file into the users table, discarding any records with incomplete data
 def load_and_clean_users(file_path):
 
@@ -71,10 +78,6 @@ def load_and_clean_users(file_path):
         cursor.executemany('''INSERT INTO users (userId, firstName, lastName)
                                VALUES (?, ?, ?)''', rows_to_insert)
         conn.commit()
-
-
-# This function will load the callLogs.csv file into the callLogs table, discarding any records with incomplete data
-def load_and_clean_call_logs(file_path):
 
     print("TODO: load_call_logs")
 
