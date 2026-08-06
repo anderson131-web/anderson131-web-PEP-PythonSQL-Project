@@ -53,113 +53,152 @@ def main():
     conn.close()
 
 
-# This function will load the users.csv file into the users table, discarding any records with incomplete data
 def load_and_clean_users(file_path):
+    """
+    Load users from CSV and insert into database.
 
+    Validates each record:
+    - Must have exactly 3 fields
+    - No empty fields
+    - userId must be numeric
+
+    Args:
+        file_path: Path to users.csv file
+    """
     with open(file_path, 'r') as file:
         reader = csv.reader(file)
-        next(reader, None)  # skip header row
+        next(reader, None)  # Skip header row
         rows_to_insert = []
 
         for row in reader:
+            # Validate row has correct number of fields
             if len(row) != 3:
                 continue
+
+            # Validate no empty fields
             if any(field.strip() == '' for field in row):
                 continue
+
+            # Validate userId is numeric
             if not row[0].strip().isdigit():
                 continue
 
             userId, firstName, lastName = row
             rows_to_insert.append((int(userId), firstName, lastName))
 
-        cursor.executemany('''INSERT INTO users (userId, firstName, lastName)
-                               VALUES (?, ?, ?)''', rows_to_insert)
+        cursor.executemany(
+            'INSERT INTO users (userId, firstName, lastName) VALUES (?, ?, ?)',
+            rows_to_insert
+        )
         conn.commit()
 
 
-# This function will load the callLogs.csv file into the callLogs table, discarding any records with incomplete data
 def load_and_clean_call_logs(file_path):
+    """
+    Load call logs from CSV and insert into database.
 
+    Validates each record:
+    - Must have exactly 5 fields
+    - No empty fields
+    - startTime and endTime must be numeric
+    - userId must be numeric
+
+    Args:
+        file_path: Path to callLogs.csv file
+    """
     with open(file_path, 'r') as file:
         reader = csv.reader(file)
-        next(reader, None)  # skip header row
-
+        next(reader, None)  # Skip header row
         rows_to_insert = []
 
         for row in reader:
+            # Validate row has correct number of fields
             if len(row) != 5:
                 continue
+
+            # Validate no empty fields
             if any(field.strip() == '' for field in row):
                 continue
-            if not row[1].strip().lstrip('-').isdigit() or not row[2].strip().lstrip('-').isdigit() or not row[4].strip().isdigit():
+
+            # Validate numeric fields
+            if (not row[1].strip().lstrip('-').isdigit() or
+                not row[2].strip().lstrip('-').isdigit() or
+                not row[4].strip().isdigit()):
                 continue
 
             phoneNumber, startTime, endTime, direction, userId = row
-            rows_to_insert.append((phoneNumber, int(startTime), int(endTime), direction, int(userId)))
+            rows_to_insert.append(
+                (phoneNumber, int(startTime), int(endTime), direction, int(userId))
+            )
 
-        cursor.executemany('''INSERT INTO callLogs (phoneNumber, startTime, endTime, direction, userId)
-                               VALUES (?, ?, ?, ?, ?)''', rows_to_insert)
+        cursor.executemany(
+            'INSERT INTO callLogs (phoneNumber, startTime, endTime, direction, userId) VALUES (?, ?, ?, ?, ?)',
+            rows_to_insert
+        )
         conn.commit()
 
 
-# This function will write analytics data to testUserAnalytics.csv - average call time, and number of calls per user.
 def write_user_analytics(csv_file_path):
+    """
+    Generate analytics report with average call duration and call count per user.
 
+    Args:
+        csv_file_path: Path where to write the userAnalytics.csv file
+    """
     with open(csv_file_path, 'w', newline='') as file:
         writer = csv.writer(file)
 
-        cursor.execute('''SELECT userId, endTime - startTime FROM callLogs''')
+        cursor.execute('SELECT userId, endTime - startTime FROM callLogs')
 
         durations = {}
         counts = {}
 
+        # Aggregate call durations and counts by user
         for userId, duration in cursor:
             durations.setdefault(userId, []).append(duration)
             counts[userId] = counts.get(userId, 0) + 1
 
-        # Sort by userId to ensure consistent ordering
+        # Write analytics sorted by userId
         for userId in sorted(durations.keys()):
-            avgDuration = sum(durations[userId]) / len(durations[userId])
-            numCalls = counts[userId]
-            writer.writerow([userId, avgDuration, numCalls])
+            avg_duration = sum(durations[userId]) / len(durations[userId])
+            num_calls = counts[userId]
+            writer.writerow([userId, avg_duration, num_calls])
 
 
-# This function will write the callLogs ordered by userId, then start time.
 def write_ordered_calls(csv_file_path):
+    """
+    Write all call logs to CSV ordered by userId, then start time.
 
+    Args:
+        csv_file_path: Path where to write the orderedCalls.csv file
+    """
     with open(csv_file_path, 'w', newline='') as file:
         writer = csv.writer(file)
 
-        cursor.execute('''SELECT * FROM callLogs ORDER BY userId, startTime''')
+        cursor.execute('SELECT * FROM callLogs ORDER BY userId, startTime')
 
         for row in cursor:
             writer.writerow(row)
 
 
-# No need to touch the functions below!------------------------------------------
-
 def select_from_users_and_call_logs():
-
-    print()
-    print("PRINTING DATA FROM USERS")
-    print("-------------------------")
-
-    cursor.execute('''SELECT * FROM users''')
+    """Print all data from users and call logs tables (for debugging)."""
+    print("\nPRINTING DATA FROM USERS")
+    print("------------------------")
+    cursor.execute('SELECT * FROM users')
     for row in cursor:
         print(row)
 
-    print()
-    print("PRINTING DATA FROM CALLLOGS")
-    print("-------------------------")
-
-    cursor.execute('''SELECT * FROM callLogs''')
+    print("\nPRINTING DATA FROM CALLLOGS")
+    print("---------------------------")
+    cursor.execute('SELECT * FROM callLogs')
     for row in cursor:
         print(row)
 
 
 def return_cursor():
+    """Return the database cursor for advanced operations."""
     return cursor
-
 
 if __name__ == '__main__':
     main()
