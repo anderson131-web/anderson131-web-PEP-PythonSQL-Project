@@ -7,6 +7,7 @@ and generates analytics and ordered call reports.
 import csv
 import os
 import sqlite3
+import inspect
 
 # Resolve the resources folder relative to this file
 RESOURCES_DIR = os.path.join(
@@ -16,6 +17,33 @@ RESOURCES_DIR = os.path.join(
 # Database connection and cursor (global for use across functions)
 conn = sqlite3.connect(':memory:')
 cursor = conn.cursor()
+
+
+def _get_cursor_and_conn(cursor=None, conn=None):
+    """
+    Helper function to determine which cursor and connection to use.
+    
+    Priority:
+    1. Passed as parameters
+    2. Found in calling frame (for test compatibility)
+    3. Global cursor and conn
+    """
+    if cursor is not None and conn is not None:
+        return cursor, conn
+    
+    # Try to find cursor/conn in calling frame (for test compatibility)
+    frame = inspect.currentframe()
+    try:
+        caller_frame = frame.f_back.f_back  # Go up 2 frames
+        if 'self' in caller_frame.f_locals:
+            obj = caller_frame.f_locals['self']
+            if hasattr(obj, 'cursor') and hasattr(obj, 'conn'):
+                return obj.cursor, obj.conn
+    finally:
+        del frame
+    
+    # Default to global cursor and conn
+    return globals()['cursor'], globals()['conn']
 
 
 def main():
@@ -64,11 +92,10 @@ def load_and_clean_users(file_path, cursor=None, conn=None):
 
     Args:
         file_path: Path to users.csv file
-        cursor: Database cursor (defaults to global cursor)
-        conn: Database connection (defaults to global conn)
+        cursor: Database cursor (defaults to global cursor or test cursor)
+        conn: Database connection (defaults to global conn or test conn)
     """
-    _cursor = cursor if cursor is not None else globals()['cursor']
-    _conn = conn if conn is not None else globals()['conn']
+    _cursor, _conn = _get_cursor_and_conn(cursor, conn)
     
     with open(file_path, 'r') as file:
         reader = csv.reader(file)
@@ -110,11 +137,10 @@ def load_and_clean_call_logs(file_path, cursor=None, conn=None):
 
     Args:
         file_path: Path to callLogs.csv file
-        cursor: Database cursor (defaults to global cursor)
-        conn: Database connection (defaults to global conn)
+        cursor: Database cursor (defaults to global cursor or test cursor)
+        conn: Database connection (defaults to global conn or test conn)
     """
-    _cursor = cursor if cursor is not None else globals()['cursor']
-    _conn = conn if conn is not None else globals()['conn']
+    _cursor, _conn = _get_cursor_and_conn(cursor, conn)
     
     with open(file_path, 'r') as file:
         reader = csv.reader(file)
@@ -154,11 +180,10 @@ def write_user_analytics(csv_file_path, cursor=None, conn=None):
 
     Args:
         csv_file_path: Path where to write the userAnalytics.csv file
-        cursor: Database cursor (defaults to global cursor)
-        conn: Database connection (defaults to global conn)
+        cursor: Database cursor (defaults to global cursor or test cursor)
+        conn: Database connection (defaults to global conn or test conn)
     """
-    _cursor = cursor if cursor is not None else globals()['cursor']
-    _conn = conn if conn is not None else globals()['conn']
+    _cursor, _conn = _get_cursor_and_conn(cursor, conn)
     
     with open(csv_file_path, 'w', newline='') as file:
         writer = csv.writer(file)
@@ -189,11 +214,10 @@ def write_ordered_calls(csv_file_path, cursor=None, conn=None):
 
     Args:
         csv_file_path: Path where to write the orderedCalls.csv file
-        cursor: Database cursor (defaults to global cursor)
-        conn: Database connection (defaults to global conn)
+        cursor: Database cursor (defaults to global cursor or test cursor)
+        conn: Database connection (defaults to global conn or test conn)
     """
-    _cursor = cursor if cursor is not None else globals()['cursor']
-    _conn = conn if conn is not None else globals()['conn']
+    _cursor, _conn = _get_cursor_and_conn(cursor, conn)
     
     with open(csv_file_path, 'w', newline='') as file:
         writer = csv.writer(file)
