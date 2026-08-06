@@ -97,7 +97,7 @@ def load_and_clean_users(file_path, cursor=None, conn=None):
         conn: Database connection (defaults to global conn or test conn)
     """
     _cursor, _conn = _get_cursor_and_conn(cursor, conn)
-    
+
     with open(file_path, 'r') as file:
         reader = csv.reader(file)
         next(reader, None)  # Skip header row
@@ -108,12 +108,15 @@ def load_and_clean_users(file_path, cursor=None, conn=None):
             if len(row) != 3:
                 continue
 
+            # Strip whitespace from every field up front
+            row = [field.strip() for field in row]
+
             # Validate no empty fields
-            if any(field.strip() == '' for field in row):
+            if any(field == '' for field in row):
                 continue
 
             # Validate userId is numeric
-            if not row[0].strip().isdigit():
+            if not row[0].isdigit():
                 continue
 
             userId, firstName, lastName = row
@@ -124,6 +127,7 @@ def load_and_clean_users(file_path, cursor=None, conn=None):
             rows_to_insert
         )
         _conn.commit()
+
 
 
 
