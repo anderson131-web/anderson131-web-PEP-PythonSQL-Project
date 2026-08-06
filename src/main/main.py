@@ -125,6 +125,8 @@ def load_and_clean_users(file_path, cursor=None, conn=None):
         _conn.commit()
 
 
+
+
 def load_and_clean_call_logs(file_path, cursor=None, conn=None):
     """
     Load call logs from CSV and insert into database.
